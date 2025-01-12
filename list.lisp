@@ -8,11 +8,31 @@
    (columns
     :initarg :columns
     :accessor lister-columns)
-   (rows
-    :initarg :rows
-    :accessor lister-rows
+   (filename
+    :initarg :filename
+    :accessor lister-filename)
+   (handler
+    :initarg :handler
+    :accessor field-handler
     :initform nil)
    ))
+
+(defmethod initialize-instance :after ((menu lem/multi-column-list:multi-column-list) 
+                                       &key source-lister &allow-other-keys)
+  (when source-lister
+    (setf (slot-value menu 'source-lister) source-lister)
+    (setf (slot-value menu 'lem/multi-column-list::columns)
+          (mapcar #'field-name
+                  (remove-if-not #'field-display-p
+                                 (lister-columns source-lister))))
+    (setf (slot-value menu 'lem/multi-column-list::select-callback)
+          (lambda (menu item)
+            (declare (ignore menu))
+            (when-let ((handler (lister-handler source-lister)))
+              (funcall handler (lem/multi-column-list::unwrap 
+                                (lem/multi-column-list::default-multi-column-list-item-value item))))))
+    (setf (slot-value menu 'lem/multi-column-list::filter-function)
+          nil)))
 
 (defparameter *listers* (make-hash-table :test 'equal))
 (defun register-lister (lister)

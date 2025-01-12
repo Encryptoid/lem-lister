@@ -1,14 +1,11 @@
 (defpackage #:lem-lister
-  (:use #:cl))
+  (:use #:cl #:lem))
 (in-package #:lem-lister)
 
 (defclass list-column ()
   ((name
     :initarg :name
     :accessor field-name)
-   (handler
-    :initarg :handler
-    :accessor field-handler)
    (display-p
     :initarg :display-p
     :accessor field-display-p

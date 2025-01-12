@@ -1,19 +1,69 @@
 (in-package #:lem-lister)
 
+(define-lister-command 'isearch-lister "iSearch" "C-c l i")
+(define-lister-command 'dir-lister "Workspaces")
+(define-lister-command 'file-lister "LemFiles" "C-c l l")
+(define-lister-command 'file-lister "ConfigFiles" "C-c l c")
+
 (setq ws-lister (make-instance 'dir-lister :name "Workspaces"))
-(register-lister ws-lister)
+(display-lister-view (get-lister "Workspaces"))
+
+(make-instance 'isearch-lister :name "Test")
+(lem:define-command lister-search () ()
+  (display-lister-view (get-lister "Search")))
+(define-key *global-keymap* "C-c l s" 'lister-search)
+
+(define-lister-command-key 'isearch-lister "i" "C-c l i")
+
+;; Usage:
+(define-lister-command-key 'isearch-lister "Test" "C-c l a")
+
+(setq lem-file-lister (make-instance 'file-lister :name "Lem Files"))
+(display-lister-view (get-lister "Lem Files"))
+
+(get-lister "Workspaces")
+
+(lister-filename ws-lister)
 
 (add-new-row ws-lister "My Project" "/home/projects/my-project")
 (add-new-row ws-lister "Test" "/home/projects/my-project")
 
 
-(display-lister-view (get-lister "Workspaces"))
+(prompt-for-file "Load File: "
+                 :directory (or (buffer-filename) (buffer-directory))
+                 :default nil
+                 :existing t)
 
-;; (lem:define-command lister-workspaces () ()
-;;   (display-lister-view (get-lister "Workspaces")))
+(lem:switch-to-buffer (lem/buffer/file::find-file-buffer "/home/l/notes/"))
+
+;; (lem-core/commands/file:find-file-executor "/home/l/notes/todo.md")
+
+(display-lister-view (get-lister "Workspaces"))
+(describe lem/buffer/file:*find-directory-function*)
+
+(prompt-for-file
+ (format nil "Enter ~a: " "")
+ )
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (lem:define-command lister-workspaces () ()
-    (ensure-view-exists (lister-class-to-view-name
-                          (type-of (get-lister "Workspaces"))))
-    (display-lister-view (get-lister "Workspaces"))))
+  (unless (get-lister "Workspaces")
+    (let ((ws-lister (make-instance 'dir-lister :name "Workspaces")))
+      (register-lister ws-lister))))
+
+(lem:define-command lister-workspaces () ()
+  (display-lister-view (get-lister "Workspaces")))
+
+(display-lister-view (get-lister "Workspaces"))
+
+(make-instance 'dir-lister
+               :name "test1"
+               :handler (lambda (item)
+                          (lem:message "Selected file: ~A"
+                                       (cdr (assoc "Name" (lister-item-row-data item)
+                                                   :test #'string=)))))
+
+;; Add some test data
+(add-new-row (get-lister "test1") "file1.txt" "/path/to/file1.txt")
+
+;; Display it
+(display-lister-view (get-lister "test1"))

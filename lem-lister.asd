@@ -4,8 +4,6 @@
   :license  "Specify license here"
   :version "0.0.1"
   :serial t
-  :components ((:file "lem-lister")
-               (:file "row")
-               (:file "display-mcl")
-               (:file "list")
-               (:file "templates")))
+  :components ((:file "all")
+               (:file "templates")
+               (:file "display-mcl")))

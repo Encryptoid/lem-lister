@@ -1,108 +1,193 @@
 (in-package #:lem-lister)
 
-(defmacro define-lister-view (name &body body)
-  (let ((item-class-name (intern (format nil "~A-ITEM" name)))
-        (menu-class-name (intern (format nil "~A-MENU" name))))
-    `(progn
-       ;; Item class definition
-       (defclass ,item-class-name (lem/multi-column-list:multi-column-list-item)
-         ((lister-row :initarg :row
-                      :reader lister-row)))
 
-       ;; Add method to handle value extraction for the wrapper system
-       (defmethod lem/multi-column-list::default-multi-column-list-item-value ((item ,item-class-name))
-         (lister-row item))
+(defclass lister-menu (lem/multi-column-list:multi-column-list)
+  ((source-lister :initarg :source-lister
+                  :reader lister-menu-source-lister)))
 
-       ;; Menu class definition
-       (defclass ,menu-class-name (lem/multi-column-list:multi-column-list)
-         ((source-lister :initarg :source-lister
-                         :reader source-lister)))
+;; Method to convert raw data to columns for display
+(defmethod lem/multi-column-list:map-columns ((component lister-menu) data)
+  (let* ((lister (lister-menu-source-lister component))
+         (columns (lister-columns lister))
+         (row-data (typecase data
+                     (lem/multi-column-list::default-multi-column-list-item
+                         (lem/multi-column-list::default-multi-column-list-item-value data))
+                     (t data))))
+    (loop :for column :in columns
+          :when (column-display-p column)
+          :collect (let ((value (cdr (assoc (column-name column) row-data :test #'string=))))
+                     (funcall (field-formatter column)
+                              (or value ""))))))
 
-       ;; Initialize columns and filter function
-       (defmethod initialize-instance :after ((menu ,menu-class-name) &key source-lister &allow-other-keys)
-         (setf (slot-value menu 'lem/multi-column-list::columns)
-               (mapcar #'field-name
-                       (remove-if-not #'field-display-p
-                                      (lister-columns source-lister))))
+;; Primary method for handling raw data
+;; In all.lisp
+(defmethod lem/multi-column-list:select-item ((component lister-menu) (raw-data cons))
+  (let* ((lister (lister-menu-source-lister component))
+         (handler (lister-handler lister)))
+    (logm:logm (format nil "select-item called with data: ~A" raw-data))
+    (handler-case
+        (progn
+          (lem/multi-column-list:quit component)
+          (when handler
+            (logm:logm (format nil "About to call handler..."))
+            (apply handler (list raw-data)))
+          )
+      (error (c)
+        (logm:logm (format nil "Error in select-item: ~A" c))))))
 
-         (setf (slot-value menu 'lem/multi-column-list::filter-function)
-               (lambda (search-string)
-                 (let ((search-str (string-downcase search-string)))
-                   (remove-if-not
-                    (lambda (item)
-                      (let* ((row (lister-row item))
-                             (displayed-columns (remove-if-not #'field-display-p
-                                                               (lister-columns (source-lister menu))))
-                             (values (mapcar (lambda (col)
-                                               (princ-to-string
-                                                (gethash col (row-values row))))
-                                             displayed-columns)))
-                        (some (lambda (value)
-                                (search search-str
-                                        (string-downcase value)))
-                              values)))
-                    (slot-value menu 'lem/multi-column-list::items))))))
+;; Around method for unwrapping default-multi-column-list-item
+(defmethod lem/multi-column-list:select-item :around
+    ((component lister-menu) (item lem/multi-column-list::default-multi-column-list-item))
+  (handler-case
+      (lem/multi-column-list:select-item
+       component
+       (lem/multi-column-list::default-multi-column-list-item-value item))
+    (error (c)
+      (logm:logm (format nil "Error in select-item :around method: ~A" c)))))
 
-       ;; Map columns method
-       (defmethod lem/multi-column-list:map-columns ((component ,menu-class-name)
-                                                     (item ,item-class-name))
-         (let* ((row (lister-row item))
-                (displayed-columns (remove-if-not #'field-display-p
-                                                  (lister-columns (source-lister component)))))
-           (mapcar (lambda (col)
-                     (princ-to-string
-                      (gethash col (row-values row))))
-                   displayed-columns)))
+;; Helper function to get column headers
+(defun get-column-headers (lister)
+  (loop :for column :in (lister-columns lister)
+        :when (column-display-p column)
+        :collect (column-name column)))
 
-       ;; Select item method
-       (defmethod lem/multi-column-list:select-item ((component ,menu-class-name) item)
-         (lem:message "selected")
-         (lem/multi-column-list:update component)))));; Function to display a lister
+;; Main display function
+(defun filter-lister-items (search-string item)
+  "Filter function for lister items based on search string"
+  (let ((item-values (typecase item
+                       (lem/multi-column-list::default-multi-column-list-item
+                           (lem/multi-column-list::default-multi-column-list-item-value item))
+                       (t item))))
+    (some (lambda (pair)
+            (search search-string (string-downcase (format nil "~a" (cdr pair)))
+                    :test #'char-equal))
+          item-values)))
 
-
-
-
-;; ;; Enhanced display function that determines view automatically
-;; (defun display-lister-view (lister)
-;;   "Display a lister in the multi-column view, automatically determining the view type.
-;;    The view type is derived from the lister's class name by replacing '-lister' with '-view'."
-;;   (let* ((lister-type (type-of lister))
-;;          (view-name (lister-class-to-view-name lister-type))
-;;          (menu-class-name (intern (format nil "~A-MENU" view-name))))
-;;     ;; Check if the view exists
-;;     (unless (find-class menu-class-name nil)
-;;       (error "No view defined for lister type ~A. Expected view ~A"
-;;              lister-type view-name))
-;;     ;; Display using the determined view class
-;;     (lem/multi-column-list:display
-;;      (make-instance menu-class-name
-;;                     :source-lister lister
-;;                     :items (mapcar (lambda (row)
-;;                                      (make-instance (intern (format nil "~A-ITEM" view-name))
-;;                                                     :row row))
-;;                                    (lister-rows lister))))))
-
-(defun ensure-view-exists (view-name)
-  "Make sure view is defined, return t if newly created"
-  (let ((menu-class-name (intern (format nil "~A-MENU" view-name))))
-    (when (not (find-class menu-class-name nil))
-      (define-lister-view view-name)
-      t)))
-
+;; Main display function with search support
 (defun display-lister-view (lister)
-  (let* ((view-name (lister-class-to-view-name (type-of lister)))
-         (menu-class-name (intern (format nil "~A-MENU" view-name))))
-    ;; Try to ensure view exists first
-    (ensure-view-exists view-name)
-    ;; Now display
-    (lem/multi-column-list:display
-     (make-instance menu-class-name
-                    :source-lister lister
-                    :items (mapcar (lambda (row)
-                                     (make-instance (intern (format nil "~A-ITEM" view-name))
-                                                    :row row))
-                                   (lister-rows lister))))))
+  (handler-case
+      (let ((items (or (read-rows-from-file lister) nil)))
+        (lem/multi-column-list:display
+         (make-instance 'lister-menu
+                        :source-lister lister
+                        :columns (get-column-headers lister)
+                        :items items
+                        :filter-function (lambda (search-string)
+                                           (remove-if-not
+                                            (lambda (item)
+                                              (filter-lister-items search-string item))
+                                            items)))
+         :style '(:gravity :center)))
+    (error (c)
+      (logm:logm (format nil "Error in display-lister-view: ~A" c)))))
 
-(defmacro define-lister (name superclass &body initargs)
-  `(defclass ,name (,superclass) ()
-     ,@initargs))
+(defun get-current-lister ()
+  (let* ((window (current-window))
+         (mcl (lem/multi-column-list:multi-column-list-of-window window)))
+    (when (typep mcl 'lister-menu)
+      (lister-menu-source-lister mcl))))
+
+;; Helper to create new row values using :new functions
+(defun create-new-row-values (lister)
+  (loop for column in (lister-columns lister)
+        collect (if (slot-boundp column 'new)
+                    (funcall (column-new column) column))))
+
+;; Command for creating a new row
+(define-command lister-menu/new-row () ()
+  (let ((current-lister (get-current-lister)))
+    (if current-lister
+        (handler-case
+            (let ((new-values (create-new-row-values current-lister)))
+              (apply #'add-new-row current-lister new-values)
+              (display-lister-view current-lister))
+          (error (c)
+            (logm:logm (format nil "Error creating new row: ~A" c))
+            (message "Failed to create new row")))
+        (message "No active lister found"))))
+
+;; Add key binding
+(define-key lem/multi-column-list::*multi-column-list-mode-keymap* "C-c n" 'lister-menu/new-row)
+
+;; Helper to get current row from the mcl
+(defun get-current-row ()
+  (let* ((window (current-window))
+         (mcl (lem/multi-column-list:multi-column-list-of-window window)))
+    (when (typep mcl 'lister-menu)
+      (let ((focus-item (lem/multi-column-list::current-focus-item mcl)))
+        (when focus-item
+          (typecase focus-item
+            (lem/multi-column-list::default-multi-column-list-item
+                (lem/multi-column-list::default-multi-column-list-item-value focus-item))
+            (t focus-item)))))))
+
+;; Command for removing the current row
+(define-command lister-menu/remove-row () ()
+  (let ((current-lister (get-current-lister)))
+    (if current-lister
+        (handler-case
+            (let ((current-row (get-current-row)))
+              (if current-row
+                  (progn
+                    (remove-row current-lister current-row)
+                    (quit-current-multi-column-list)
+                    (display-lister-view current-lister))
+                  (message "No row selected")))
+          (error (c)
+            (logm:logm (format nil "Error removing row: ~A" c))
+            (message "Failed to remove row")))
+        (message "No active lister found"))))
+
+;; Add key binding for remove
+(define-key lem/multi-column-list::*multi-column-list-mode-keymap* "C-c d" 'lister-menu/remove-row)
+
+;
+;; ROW MCL
+(defclass row-values-lister (lister)
+  ((source-row
+    :initarg :source-row
+    :accessor row-values-source-row)))
+
+(defclass column-column (string-column) ()
+  (:default-initargs
+   :name "Column"))
+
+(defclass value-column (string-column) ()
+  (:default-initargs
+   :name "Value"))
+
+(defun create-row-values-lister (row)
+  (let ((lister (make-instance 'row-values-lister
+                               :name "row-values"
+                               :source-row row
+                               :columns (list
+                                         (make-instance 'column-column)
+                                         (make-instance 'value-column)))))
+    ;; Convert row alist to the format needed for display
+    (let ((values-as-rows
+            (loop for (column . value) in row
+                  collect (list (cons "Column" column)
+                                (cons "Value" (princ-to-string value))))))
+      (write-rows-to-file lister values-as-rows))
+    lister))
+
+(defun quit-current-multi-column-list ()
+  (lem/multi-column-list:quit (lem/multi-column-list:multi-column-list-of-window (current-window))))
+
+
+(define-command lister-menu/access-row () ()
+  (let ((current-lister (get-current-lister)))
+    (if current-lister
+        (handler-case
+            (let ((current-row (get-current-row)))
+              (if current-row
+                  (let ((values-lister (create-row-values-lister current-row)))
+                    (quit-current-multi-column-list)
+                    (display-lister-view values-lister))
+                  (message "No row selected")))
+          (error (c)
+            (logm:logm (format nil "Error accessing row: ~A" c))
+            (message "Failed to access row")))
+        (message "No active lister found"))))
+
+(define-key lem/multi-column-list::*multi-column-list-mode-keymap* "C-c a" 'lister-menu/access-row)
