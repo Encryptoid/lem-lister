@@ -1,7 +1,8 @@
 Readme todos:
-TODO - Expose *lister-dir* and explain
-TODO - Expose keybindings and explain
-TODO - Remove unneeded commands
+ - TODO - Expose *lister-dir* and explain
+ - TODO - Expose keybindings and explain 
+ - TODO - Remove unneeded commands
+ - TODO - Explain display-p
 
 # lem-lister
 
@@ -36,13 +37,15 @@ Download this repo to a directory and load it in your user config.
 
 
 ## Setup
-After installation, you can define lists in your config with the macro: `define-lister-command-key`, which will create for you: a lister, a command, and optionally a keybinding:
+After installation, you can define lists in your config with the macro: `define-lister-command`, which will create for you: a lister, a command, and optionally a keybinding:
 ```common-lisp
 (define-lister-command 'isearch-lister "Search" "C-c l i") ;; Produces command `lister-search`
 (define-lister-command 'dir-lister "Workspaces") ;; Produces command `lister-workspaces`
 ```
 
 When you create your list it will be empty and not display anything. `C-c n` will initiate a new row based on your columns.
+
+`C-c d` to remove
 
 ## Templates
 Lister lists are built off templates. These templates define functionality about the list. For now each template can define the list's:
@@ -61,7 +64,7 @@ Looking at the core lister template `file-lister`, we can see it's definition he
    :handler #'path-lister-open)) ;; Handler function will assoc `File` from selected row and open it as a path(shared with dir-lister)
 ```
 
-We can see that it has 2 columns, `Name` & `File`. `Name` is a `string-column` that isn't strickly necessary for files, but you can give a nicer name to search.
+We can see that it has 2 columns, `Name` & `File`. `Name` is a `string-column` that isn't strictly necessary for files, but you can give a nicer name to search.
 `File` is a `file-column`.
 
 When we request to create a new lister entry, lister will loop through each column, and depending on the type of column, will perform the appropriate data acquisition.
@@ -84,7 +87,7 @@ Currently the list of core columns are:
   - dir-column
   - isearch-column
 
-The current list of core listers are below. Feel free to add contribute more if they would be useful. I have no yet added some simple ones like one for grep, etc.
+The current list of core listers are below. Feel free to add contribute more if they would be useful. I have not yet added some simple ones like for grep'ing, etc.
 
 #### file-lister
 Description: Allows storing a list of files.
@@ -127,4 +130,15 @@ Keep in mind that these do not need to request input from the user, and can simp
   (prompt-for-string
    (format nil "Enter ~a: " (column-name col))
    ))
+```
+
+Then you can define your template similar to this:
+```common-lisp
+(define-template file-lister
+  (:default-initargs
+   :name "file-lister"
+   :columns (list ;; Column Definitions
+             (make-instance 'string-column :name "Name")
+             (make-instance 'file-column :name "File" :display-p t))
+   :handler #'path-lister-open)) ;; Handler function will assoc `File` from selected row and open it as a path(shared with dir-lister)
 ```
