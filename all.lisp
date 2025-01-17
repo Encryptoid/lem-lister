@@ -3,7 +3,8 @@
 
 (in-package #:lem-lister)
 
-;; Column
+(defparameter *lister-dir* (uiop:parse-native-namestring (uiop:native-namestring
+                                                          "~/.local/share/lem/lister") :ensure-directory t))
 (defclass list-column ()
   ((name
     :initarg :name
@@ -16,12 +17,19 @@
     :initarg :formatter
     :accessor field-formatter
     :initform #'column-formatter)
+   (handler
+    :initarg :handler
+    :accessor field-handler
+    :initform #'column-handler)
    (new
     :initarg :new
     :accessor column-new)))
 
 (defun column-formatter (col)
   col)
+
+(defun column-handler (col)
+  (cdr (assoc "Value" col)))
 
 ;; ROW
 
@@ -81,7 +89,6 @@
     :initform nil)
    ))
 
-(defparameter *lister-dir* "/home/l/.local/share/lem/lister/")
 
 (defmethod initialize-instance :after ((lister lister) &key &allow-other-keys)
   "Initialize the lister's storage file"

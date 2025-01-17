@@ -29,7 +29,8 @@
   (prompt-for-file
    (format nil "Enter ~a: " col)
    :directory (current-directory)
-   ))
+   )
+)
 
 (defun format-file-column (col)
   col)
@@ -48,10 +49,8 @@
    ))
 
 (defun dir-column-new (col)
-  (prompt-for-directory
-   (format nil "Enter ~a: " col)
-   :directory (current-directory)
-   ))
+  (prompt-for-directory ""
+                        :directory (buffer-directory)))
 
 (defun format-dir-column (col)
   col)
@@ -59,6 +58,20 @@
 (defun handle-dir-column (col)
   ;; To Clip
   )
+
+;; Link Column
+(defclass link-column (list-column) ()
+  (:default-initargs
+   :handler #'handle-link-column
+   :formatter #'column-formatter
+   :new #'string-column-new))
+
+(defun handle-link-column (col)
+  (logm:logm (format nil "Selected link: ~A" col))
+  ;; (open-external-file ())
+)
+;
+
 
 ;; LISTER TEMPLATES
 (defun path-lister-open (row)
@@ -98,8 +111,9 @@
    :name "isearch-lister"
    :columns (list
              (make-instance 'string-column :name "Name")
-             (make-instance 'string-column :name "Search"))
-   :handler #'isearch-for-value))
+             (make-instance 'string-column :name "Search")
+             (make-instance 'link-column :name "Linky"))
+  :handler #'isearch-for-value))
 
 (defun isearch-for-value (row)
   (lem/isearch::isearch-start (format nil "~A: " (cdr (assoc "Name" row :test #'string=)))
@@ -107,7 +121,6 @@
                               #'lem/isearch::search-forward-regexp
                               #'lem/isearch::search-backward-regexp
                               (cdr (assoc "Search" row :test #'string=))))
-;
 
 ;; (define-template command-lister
 ;;   (:default-initargs

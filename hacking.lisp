@@ -1,7 +1,24 @@
 (in-package #:lem-lister)
 
+(define-template task-lister
+  (:default-initargs
+   :name "isearch-lister"
+   :columns (list
+             (make-instance 'string-column :name "Name")
+             (make-instance 'bool-column :name "Current") ;; TODO init false
+             (make-instance 'string-column :name "#")
+             
+             (make-instance 'string-column :name "Project")
+             (make-instance 'string-column :name "Status") ;; TODO init todo
+             (make-instance 'link-column :name "Ticket") ;; TODO init todo
+             )
+   :handler #'isearch-for-value))
+
+(open-external-file url)
+
+
 (define-lister-command 'isearch-lister "iSearch" "C-c l i")
-(define-lister-command 'dir-lister "Workspaces")
+(define-lister-command 'dir-lister "Workspaces" "C-c l w")
 (define-lister-command 'file-lister "LemFiles" "C-c l l")
 (define-lister-command 'file-lister "ConfigFiles" "C-c l c")
 
@@ -67,3 +84,32 @@
 
 ;; Display it
 (display-lister-view (get-lister "test1"))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

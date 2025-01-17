@@ -1,7 +1,6 @@
 Readme todos:
  - TODO - Expose *lister-dir* and explain
- - TODO - Expose keybindings and explain 
- - TODO - Remove unneeded commands
+ - TODO - Expose keybindings and explain
  - TODO - Explain display-p
 
 # lem-lister
@@ -20,6 +19,12 @@ If you wish to request new functionality, or discuss if something would fit in t
     - link
     - bool
  - Add keybinds to promote and demote items in the list.
+ - Additional backends such as json and sqlite(to be read by other apps).
+
+### Smaller
+ - Tests!
+ - Default/Row Titles on empty List
+ - Remove unneeded commands
 
 ## Introduction
 Lem Lister is a package that leverages Lem's multi-column-list functionality to allow you to create your own lists.

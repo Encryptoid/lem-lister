@@ -6,4 +6,5 @@
   :serial t
   :components ((:file "all")
                (:file "templates")
-               (:file "display-mcl")))
+               (:file "display-mcl")
+               (:file "lem-lister")))

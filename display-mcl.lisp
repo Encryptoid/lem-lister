@@ -90,20 +90,27 @@
 ;; Helper to create new row values using :new functions
 (defun create-new-row-values (lister)
   (loop for column in (lister-columns lister)
-        collect (if (slot-boundp column 'new)
-                    (funcall (column-new column) column))))
+        collect (progn
+                  (logm:logm "Hiel: ~a" (column-new column))
+                  (if (slot-boundp column 'new)
+                      (let ((col-new (column-new column)))
+                          (funcall col-new column)
+                      ;; (dir-column-new column)
+                    )))))
 
 ;; Command for creating a new row
 (define-command lister-menu/new-row () ()
   (let ((current-lister (get-current-lister)))
     (if current-lister
+        (progn
         (handler-case
-            (let ((new-values (create-new-row-values current-lister)))
+          (let ((new-values (create-new-row-values current-lister)))
+            (logm:logm "Hi " )
               (apply #'add-new-row current-lister new-values)
               (display-lister-view current-lister))
           (error (c)
             (logm:logm (format nil "Error creating new row: ~A" c))
-            (message "Failed to create new row")))
+            (message "Failed to create new row"))))
         (message "No active lister found"))))
 
 ;; Add key binding
